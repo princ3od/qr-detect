@@ -1,0 +1,38 @@
+{
+  "name": "@homstera/qr-detect",
+  "version": "0.1.0",
+  "description": "Detector-first QR localization + decoding for hard cases (small/blurry/low-contrast QR on Vietnamese CCCD ID cards).",
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "models/qrdet-s.onnx",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsx scripts/test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "onnxruntime-node": "^1.19.0",
+    "sharp": "^0.33.5",
+    "zxing-wasm": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.3.3"
+  }
+}
