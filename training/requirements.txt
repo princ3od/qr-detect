@@ -8,3 +8,4 @@ pillow>=9.5
 qrcode>=7.4
 onnx>=1.15
 onnxruntime>=1.16
+onnxscript>=0.1  # imported by torch.onnx.export on torch>=2.9 even for dynamo=False

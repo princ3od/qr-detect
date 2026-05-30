@@ -35,10 +35,7 @@ def main():
     example = [torch.rand(3, 640, 640)]
     # NOTE: wrap in a tuple so export passes `example` as a SINGLE positional arg
     # (the list of images) rather than unpacking it via model(*example).
-    torch.onnx.export(
-        model,
-        (example,),
-        args.out,
+    export_kwargs = dict(
         opset_version=args.opset,
         input_names=["images"],
         output_names=["boxes", "labels", "scores"],
@@ -50,6 +47,14 @@ def main():
         },
         do_constant_folding=True,
     )
+    # Force the legacy TorchScript exporter. Newer torch (2.9+) defaults to the
+    # dynamo exporter, which needs `onnxscript` and does NOT reliably export
+    # torchvision detection models (dynamic control flow + NMS). dynamo=False is
+    # the validated path. Fall back for older torch that lacks the kwarg.
+    try:
+        torch.onnx.export(model, (example,), args.out, dynamo=False, **export_kwargs)
+    except TypeError:
+        torch.onnx.export(model, (example,), args.out, **export_kwargs)
     print(f"exported {args.out}")
 
     # sanity check with onnxruntime
