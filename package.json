@@ -17,7 +17,7 @@
   },
   "files": [
     "dist",
-    "models/qrdet-s.onnx",
+    "models/*.onnx",
     "README.md"
   ],
   "scripts": {

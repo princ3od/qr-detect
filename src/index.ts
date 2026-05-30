@@ -1,6 +1,8 @@
 import sharp from "sharp";
 import {
-  OnnxQrDetector,
+  createDefaultDetector,
+  FasterRcnnQrDetector,
+  Yolov8QrDetector,
   type BBox,
   type Detection,
   type QrDetector,
@@ -8,7 +10,7 @@ import {
 import { decodeCrop, decodeFull } from "./decode.js";
 
 export type { BBox, Detection, QrDetector };
-export { OnnxQrDetector };
+export { createDefaultDetector, FasterRcnnQrDetector, Yolov8QrDetector };
 
 export interface DetectResult {
   text: string;
@@ -24,11 +26,11 @@ export interface DetectOptions {
   maxCropAttempts?: number;
 }
 
-const sharedDetector = new OnnxQrDetector();
+let sharedDetector: QrDetector | null = null;
 
 /**
  * Detector-first QR pipeline:
- *  1. localize QR boxes with a YOLOv8 detector,
+ *  1. localize QR boxes with the bundled detector,
  *  2. crop+upscale the best boxes and decode with zxing,
  *  3. fall back to decoding the full image.
  */
@@ -36,7 +38,7 @@ export async function detectAndDecodeQr(
   input: Buffer,
   opts: DetectOptions = {}
 ): Promise<DetectResult | null> {
-  const detector = opts.detector ?? sharedDetector;
+  const detector = opts.detector ?? (sharedDetector ??= createDefaultDetector());
   const maxCropAttempts = opts.maxCropAttempts ?? 3;
 
   // EXIF auto-orient once; reuse the oriented buffer everywhere.

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
-import { detectAndDecodeQr, OnnxQrDetector } from "../src/index.js";
+import { detectAndDecodeQr, createDefaultDetector } from "../src/index.js";
 
 const FIXTURES = [
   "/tmp/cccd-1500.jpg",
@@ -36,7 +36,7 @@ async function single(path: string): Promise<void> {
 }
 
 async function acceptance(): Promise<void> {
-  const detector = new OnnxQrDetector();
+  const detector = createDefaultDetector();
   let localized = 0;
   let cropHits = 0;
   let totalHits = 0;

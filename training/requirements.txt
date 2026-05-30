@@ -1,0 +1,10 @@
+# Training stack — all permissive (torch/torchvision BSD-3, no Ultralytics/AGPL).
+# Versions are loose; on Colab torch/torchvision are preinstalled and matched,
+# so you normally only need the non-torch packages below.
+torch>=2.0
+torchvision>=0.15
+numpy>=1.24
+pillow>=9.5
+qrcode>=7.4
+onnx>=1.15
+onnxruntime>=1.16

@@ -6,9 +6,23 @@ naive full-image decoding fails.
 
 Instead of brute-forcing the whole image, it:
 
-1. Localizes the QR with a YOLOv8 detector (qrdet).
+1. Localizes the QR with a small object-detection model (ONNX).
 2. Crops the bounding box (+15% padding), upscales, and decodes the crop with `zxing-wasm`.
 3. Falls back to decoding the full image if every crop fails.
+
+## Models (and why there are two)
+
+The localizer sits behind a `QrDetector` interface and is **auto-selected** at
+runtime from whichever ONNX file is bundled in `models/`:
+
+| File | Detector | License | Status |
+| --- | --- | --- | --- |
+| `models/qr-detector.onnx` | `FasterRcnnQrDetector` (torchvision) | **BSD-3 / yours** | **preferred** — train it yourself (see [`training/`](training/)) |
+| `models/qrdet-s.onnx` | `Yolov8QrDetector` (qrdet) | **AGPL-3.0** | fallback — works great but viral license (see [License](#-license)) |
+
+`createDefaultDetector()` prefers `qr-detector.onnx` when present, so the moment
+you drop in your trained model the package becomes fully permissive — **no code
+change required**. The whole point of the interface is this swap.
 
 ## Install
 
@@ -16,9 +30,8 @@ Instead of brute-forcing the whole image, it:
 npm install @homstera/qr-detect
 ```
 
-Self-contained: the ONNX model is bundled (`models/qrdet-s.onnx`) and the zxing
-WASM is loaded from the installed package, so it works offline after install.
-Requires Node 18+.
+Self-contained: the ONNX model is bundled and the zxing WASM is loaded from the
+installed package, so it works offline after install. Requires Node 18+.
 
 ## Usage
 
@@ -119,35 +132,54 @@ npx tsx scripts/test.ts /tmp/cccd-front-orig.jpg   # single image -> { text, bbo
 
 Acceptance: localize 6/6, crop-decode ≥5/6, total 6/6 including the fallback.
 
-## Regenerating the model
+## Training your own permissive detector (`training/`)
 
-The bundled `models/qrdet-s.onnx` was exported once from qrdet-s weights:
+To get a model with **no AGPL strings attached**, train the bundled torchvision
+detector (Faster R-CNN + MobileNetV3-Large-FPN, BSD-3) on **synthetic data** —
+QR detection is an easy single-class task where synthetic data works great and
+gives pixel-perfect labels for free. Open [`training/qr_detector_colab.ipynb`](training/qr_detector_colab.ipynb)
+in Google Colab (GPU runtime) and **Run all**:
 
-```python
-# pip install ultralytics
-from ultralytics import YOLO
-YOLO("qrdet-s.pt").export(format="onnx", imgsz=640, opset=12)
-# weights: https://github.com/Eric-Canas/qrdet/releases/download/v2.0_release/qrdet-s.pt
-```
+1. `generate_dataset.py` — renders QRs (CCCD-like density) onto varied backgrounds
+   at small scale with blur/rotation/perspective/low-contrast/JPEG augmentation.
+2. `train.py` — fine-tunes the COCO-pretrained detector (LR warmup + grad clipping).
+3. `export_onnx.py` — exports `qr-detector.onnx`.
 
-ONNX I/O (segmentation model — only the boxes are used):
+Then drop the file into `models/qr-detector.onnx` and run `npm test`. The package
+auto-switches to it. Locally you can run the same scripts (see `training/requirements.txt`);
+CPU works but is slow — a GPU is strongly recommended.
+
+The exported torchvision ONNX bakes in resize+normalize **and** NMS:
+
+- **Input** `images`: float32 RGB `[0,1]`, dims `[3,H,W]` (dynamic H/W, not batched).
+- **Outputs** `boxes` `[N,4]` xyxy (input-pixel coords), `scores` `[N]`, `labels` `[N]` (ignored).
+
+<details>
+<summary>AGPL fallback model (<code>qrdet-s.onnx</code>) ONNX I/O</summary>
+
+Exported once from qrdet-s (`pip install ultralytics`; `YOLO("qrdet-s.pt").export(format="onnx", imgsz=640, opset=12)`).
+Segmentation model — only the detection head is read:
 
 - **Input** `images` `[1,3,640,640]` float32, RGB, `/255`, CHW, letterboxed (gray 114 pad).
-- **Output 0** `[1,37,8400]` → cols 0..3 = `cx,cy,w,h` (640 space), col 4 = score,
-  cols 5..36 = 32 mask coefficients (**ignored**).
+- **Output 0** `[1,37,8400]`: cols 0..3 = `cx,cy,w,h` (640 space), col 4 = score, cols 5..36 mask coeffs (**ignored**).
 - **Output 1** mask prototypes `[1,32,160,160]` (**ignored**).
+</details>
 
 ## ⚠️ License
 
-`qrdet`'s weights are trained with **Ultralytics YOLOv8**, which is licensed
-**AGPL-3.0**. AGPL is viral and treats *network use as distribution* — i.e.
-offering this over a network service can trigger the obligation to release your
-corresponding source under AGPL. **This is a real risk for a commercial SaaS.**
+This repo currently ships **two** detector options (see [Models](#models-and-why-there-are-two)):
 
-Mitigation / swap path: the model sits behind the `QrDetector` interface, so an
-Apache/MIT-licensed detector can drop in behind the same `detectAndDecodeQr` API
-without touching callers — e.g. OpenCV `WeChatQRCode`, or a self-trained
-MIT/Apache YOLO. Only the detector module changes; the crop/decode/fallback stay.
+- **`qr-detector.onnx`** (torchvision Faster R-CNN, **BSD-3**) — the model and the
+  whole training stack are permissive. Weights you train are **yours** to license
+  (MIT/Apache). This is the recommended path for a commercial SaaS.
+- **`qrdet-s.onnx`** (Ultralytics YOLOv8 / qrdet, **AGPL-3.0**) — the fallback. AGPL
+  is viral and treats *network use as distribution*: offering it over a network
+  service can trigger the obligation to release your corresponding source under
+  AGPL. **A real risk for a commercial SaaS.** We benchmarked the obvious Apache
+  swap (OpenCV `WeChatQRCode`) and it only decoded 1/6 of real CCCD photos, which
+  is why "train your own" is the recommended permissive route rather than a
+  drop-in pretrained model.
 
-This package is published as `AGPL-3.0-only` to reflect the bundled weights.
-Replace the detector to relicense.
+If you ship **only** `qr-detector.onnx` (delete `qrdet-s.onnx`), nothing AGPL is
+distributed or run, and you can relicense this package to BSD/MIT. While the AGPL
+model is bundled, the package is published as `AGPL-3.0-only`.
