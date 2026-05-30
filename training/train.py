@@ -37,22 +37,34 @@ def build_model(num_classes: int = 2):
 
 
 @torch.no_grad()
-def evaluate_hitrate(model, loader, device, iou_thr=0.5, score_thr=0.5):
-    """Cheap proxy metric: fraction of GT boxes matched by a >score_thr pred."""
+def evaluate(model, loader, device, iou_thr=0.5, score_thr=0.5):
+    """Returns (recall, fp_per_image).
+
+    recall        = fraction of GT boxes matched by a >=score_thr prediction.
+    fp_per_image  = mean number of >=score_thr predictions that match NO GT box.
+    A good model has recall ~1.0 AND fp_per_image near 0 -- recall alone is
+    misleading (a model that fires everywhere scores perfect recall)."""
     model.eval()
-    matched = total = 0
+    matched = total_gt = 0
+    false_pos = 0
+    n_images = 0
     for images, targets in loader:
         images = [im.to(device) for im in images]
         outputs = model(images)
         for out, tgt in zip(outputs, targets):
+            n_images += 1
             gts = tgt["boxes"]
-            total += len(gts)
+            total_gt += len(gts)
             keep = out["scores"] >= score_thr
             preds = out["boxes"][keep].cpu()
             for g in gts:
                 if len(preds) and _max_iou(g, preds) >= iou_thr:
                     matched += 1
-    return matched / max(1, total)
+            for p in preds:
+                if len(gts) == 0 or _max_iou(p, gts) < iou_thr:
+                    false_pos += 1
+    recall = matched / max(1, total_gt)
+    return recall, false_pos / max(1, n_images)
 
 
 def _max_iou(box, boxes):
@@ -103,7 +115,7 @@ def main():
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    best = 0.0
+    best = float("-inf")
 
     for epoch in range(args.epochs):
         model.train()
@@ -136,14 +148,17 @@ def main():
                 print(f"  epoch {epoch} [{i+1}/{len(train_loader)}] "
                       f"loss={running/(i+1):.3f}")
         scheduler.step()
-        hit = evaluate_hitrate(model, val_loader, device)
+        recall, fp = evaluate(model, val_loader, device)
+        # quality rewards recall, penalizes false positives
+        quality = recall - 0.1 * fp
         print(f"epoch {epoch}: loss={running/len(train_loader):.3f} "
-              f"val_hitrate={hit:.3f} ({time.time()-t0:.0f}s)")
+              f"recall={recall:.3f} fp/img={fp:.2f} quality={quality:.3f} "
+              f"({time.time()-t0:.0f}s)")
         torch.save(model.state_dict(), out / "qr_frcnn.pth")
-        if hit >= best:
-            best = hit
+        if quality >= best:
+            best = quality
             torch.save(model.state_dict(), out / "qr_frcnn_best.pth")
-    print(f"done. best val hitrate={best:.3f}. checkpoint: {out/'qr_frcnn_best.pth'}")
+    print(f"done. best val quality={best:.3f}. checkpoint: {out/'qr_frcnn_best.pth'}")
 
 
 if __name__ == "__main__":
