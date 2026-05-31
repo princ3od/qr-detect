@@ -2,7 +2,6 @@ import sharp from "sharp";
 import {
   createDefaultDetector,
   FasterRcnnQrDetector,
-  Yolov8QrDetector,
   type BBox,
   type Detection,
   type QrDetector,
@@ -10,7 +9,7 @@ import {
 import { decodeCrop, decodeFull } from "./decode.js";
 
 export type { BBox, Detection, QrDetector };
-export { createDefaultDetector, FasterRcnnQrDetector, Yolov8QrDetector };
+export { createDefaultDetector, FasterRcnnQrDetector };
 
 export interface DetectResult {
   text: string;
@@ -20,7 +19,7 @@ export interface DetectResult {
 }
 
 export interface DetectOptions {
-  /** Custom detector. Defaults to the bundled ONNX qrdet-s model. */
+  /** Custom detector. Defaults to the bundled FasterRcnnQrDetector. */
   detector?: QrDetector;
   /** Max number of detections to try decoding via crop. Default 3. */
   maxCropAttempts?: number;

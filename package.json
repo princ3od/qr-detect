@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Detector-first QR localization + decoding for hard cases (small/blurry/low-contrast QR on Vietnamese CCCD ID cards).",
   "type": "module",
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "engines": {
     "node": ">=18"
   },
