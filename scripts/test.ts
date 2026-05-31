@@ -1,24 +1,38 @@
-import { readFileSync } from "node:fs";
+/**
+ * CLI / smoke test for @homstera/qr-detect.
+ *
+ *   tsx scripts/test.ts <image>          # one image -> { text, bbox, confidence, source, ms }
+ *   tsx scripts/test.ts <directory>      # every image in the dir -> table + summary
+ *   tsx scripts/test.ts                  # uses $QR_FIXTURES or ./fixtures
+ *
+ * No sample images ship with the repo (real ID cards are personal data). Point
+ * it at your own folder of photos.
+ */
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { extname, join } from "node:path";
 import { performance } from "node:perf_hooks";
-import { detectAndDecodeQr, createDefaultDetector } from "../src/index.js";
+import { detectAndDecodeQr } from "../src/index.js";
 
-const FIXTURES = [
-  "/tmp/cccd-1500.jpg",
-  "/tmp/cccd-cardfill.jpg",
-  "/tmp/cccd-front-1200.jpg",
-  "/tmp/cccd-front-orig.jpg",
-  "/tmp/cccd-front-topright.jpg",
-  "/tmp/cccd-qr.jpg",
-];
+const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp", ".bmp"]);
 
-function fmtBBox(b: [number, number, number, number]): string {
+function collectImages(target: string): string[] {
+  if (!existsSync(target)) return [];
+  if (statSync(target).isDirectory()) {
+    return readdirSync(target)
+      .filter((f) => IMAGE_EXTS.has(extname(f).toLowerCase()))
+      .map((f) => join(target, f))
+      .sort();
+  }
+  return [target];
+}
+
+function round(b: readonly number[]): string {
   return `[${b.map((n) => Math.round(n)).join(", ")}]`;
 }
 
 async function single(path: string): Promise<void> {
-  const buf = readFileSync(path);
   const t0 = performance.now();
-  const res = await detectAndDecodeQr(buf);
+  const res = await detectAndDecodeQr(readFileSync(path));
   const ms = Math.round(performance.now() - t0);
   console.log(
     JSON.stringify(
@@ -35,60 +49,43 @@ async function single(path: string): Promise<void> {
   );
 }
 
-async function acceptance(): Promise<void> {
-  const detector = createDefaultDetector();
-  let localized = 0;
-  let cropHits = 0;
-  let totalHits = 0;
-
-  // warm up the ONNX session so the first timing isn't skewed
-  await detector.detect(readFileSync(FIXTURES[0]));
-
-  for (const path of FIXTURES) {
-    const buf = readFileSync(path);
-    const name = path.split("/").pop();
-
-    const tDet = performance.now();
-    const dets = await detector.detect(buf);
-    const detMs = Math.round(performance.now() - tDet);
-    if (dets.length > 0) localized++;
-    const topConf = dets[0]?.confidence ?? 0;
-
+async function batch(paths: string[]): Promise<void> {
+  let decoded = 0;
+  for (const path of paths) {
+    const name = path.split("/").pop() ?? path;
     const t0 = performance.now();
-    const res = await detectAndDecodeQr(buf, { detector });
+    const res = await detectAndDecodeQr(readFileSync(path));
     const ms = Math.round(performance.now() - t0);
-
-    if (res) {
-      totalHits++;
-      if (res.source === "crop") cropHits++;
-    }
-
+    if (res) decoded++;
     const status = res ? "HIT " : "MISS";
-    const src = res ? res.source.padEnd(8) : "-       ";
-    const text = res ? ` "${res.text.slice(0, 42)}${res.text.length > 42 ? "…" : ""}"` : "";
+    const src = (res?.source ?? "-").padEnd(8);
+    const conf = res ? res.confidence.toFixed(2) : "----";
+    const text = res ? ` "${res.text.slice(0, 40)}${res.text.length > 40 ? "…" : ""}"` : "";
     console.log(
-      `${status} ${name?.padEnd(24)} det=${dets.length}@${topConf.toFixed(2)} ${fmtBBox(
-        dets[0]?.bbox ?? [0, 0, 0, 0]
-      ).padEnd(28)} src=${src} det=${detMs}ms total=${ms}ms${text}`
+      `${status} ${name.padEnd(26)} ${conf} ${round(res?.bbox ?? [0, 0, 0, 0]).padEnd(26)} ` +
+        `src=${src} ${String(ms).padStart(4)}ms${text}`
     );
   }
-
-  console.log("\n--- summary ---");
-  console.log(`localized:    ${localized}/${FIXTURES.length}`);
-  console.log(`crop-decoded: ${cropHits}/${FIXTURES.length}`);
-  console.log(`total-decoded ${totalHits}/${FIXTURES.length} (incl. full-image fallback)`);
-
-  // cccd-qr.jpg is a bare QR filling the frame (not a real card photo); the
-  // card-trained detector isn't expected to localize it, but the full-image
-  // fallback still decodes it. So the bar is crop >=5/6 and total 6/6.
-  const ok = cropHits >= 5 && totalHits === 6;
-  console.log(`\nACCEPTANCE: ${ok ? "PASS" : "FAIL"} (need crop >=5/6, total 6/6; localized ${localized}/6)`);
-  if (!ok) process.exitCode = 1;
+  console.log(`\ndecoded ${decoded}/${paths.length}`);
+  if (decoded === 0) process.exitCode = 1;
 }
 
 const arg = process.argv[2];
-if (arg) {
-  await single(arg);
+const target = arg ?? process.env.QR_FIXTURES ?? "fixtures";
+const images = collectImages(target);
+
+if (images.length === 0) {
+  console.error(
+    `No images found at "${target}".\n` +
+      `Usage: tsx scripts/test.ts <image|directory>\n` +
+      `   or: QR_FIXTURES=/path/to/images tsx scripts/test.ts\n` +
+      `(No sample cards ship with the repo — they're personal data.)`
+  );
+  process.exit(1);
+}
+
+if (images.length === 1) {
+  await single(images[0]);
 } else {
-  await acceptance();
+  await batch(images);
 }
