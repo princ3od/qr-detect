@@ -3,7 +3,7 @@ dist/
 *.log
 .DS_Store
 
-# local test images — real ID cards are personal data, never commit them
+# local test images
 fixtures/
 
 # training artifacts (regenerated in Colab / locally)

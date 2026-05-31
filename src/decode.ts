@@ -15,7 +15,7 @@ const READ_OPTS: ReaderOptions = {
 };
 
 const BBOX_PADDING = 0.15; // expand the detected box by 15% on each side
-// zxing's binarizer is resolution-sensitive: a dense CCCD QR often decodes at
+// zxing's binarizer is resolution-sensitive: a dense QR often decodes at
 // one upscale but not a neighbouring one. Sweep a few short-side targets and
 // stop at the first hit. Ordered by observed win-rate across both the tight
 // qrdet boxes and the looser FasterRCNN boxes on real cards.

@@ -1,11 +1,10 @@
 # @homstera/qr-detect
 
 Detector-first QR localization + decoding for **hard cases** — small, blurry, or
-low-contrast QR codes such as the one printed on Vietnamese CCCD ID cards, where
-decoding the whole image fails.
+low-contrast QR codes in photos, where decoding the whole image fails.
 
-Naïve full-image decoders (and even brute-force tiling) miss the small dense QR on
-a card photo. This package instead:
+Naïve full-image decoders (and even brute-force tiling) miss a small dense QR in a
+big photo. This package instead:
 
 1. **Localizes** the QR with a small object-detection model (ONNX).
 2. **Crops** the box (+15% padding), upscales, and decodes the crop with [`zxing-wasm`](https://github.com/Sec-ant/zxing-wasm).
@@ -17,7 +16,7 @@ Runs on CPU via `onnxruntime-node`. Self-contained and offline after install.
 import { detectAndDecodeQr } from "@homstera/qr-detect";
 import { readFileSync } from "node:fs";
 
-const result = await detectAndDecodeQr(readFileSync("cccd.jpg"));
+const result = await detectAndDecodeQr(readFileSync("photo.jpg"));
 // => { text, bbox: [x1,y1,x2,y2], confidence, source: "crop" | "fallback" } | null
 ```
 
@@ -54,17 +53,8 @@ interface QrDetector {
 ```
 
 The input is EXIF auto-oriented once (`sharp(input).rotate()`) and the oriented
-buffer is reused for detection, cropping, and the fallback.
-
-### CCCD payload
-
-A decoded Vietnamese CCCD QR is a pipe-delimited string:
-
-```
-CCCD_number | old_id | name | dob(ddmmyyyy) | sex | address | issue_date(ddmmyyyy)
-```
-
-This package only returns the raw decoded `text`; parsing is up to the caller.
+buffer is reused for detection, cropping, and the fallback. The result's `text` is
+the raw decoded QR payload — interpreting it is up to the caller.
 
 ## Model
 
@@ -76,7 +66,8 @@ permissively licensed — no AGPL anywhere.
 
 ## Benchmark
 
-Measured on 6 real CCCD photos (Apple Silicon, CPU, steady-state after warmup):
+Measured on 6 real-world photos with small/blurry QR codes (Apple Silicon, CPU,
+steady-state after warmup):
 
 | Approach | License | Decoded | Notes |
 | --- | --- | --- | --- |
@@ -94,10 +85,9 @@ out. The only off-the-shelf permissive DL alternative we found (`WeChatQRCode`) 
 
 ## Training your own detector (`training/`)
 
-To get a model with **no AGPL strings attached**, train the bundled torchvision
-detector (Faster R-CNN + MobileNetV3-Large-FPN, BSD-3) on **synthetic data** — QR
-detection is an easy single-class task where synthetic data works well and gives
-pixel-perfect labels for free.
+Train the bundled torchvision detector (Faster R-CNN + MobileNetV3-Large-FPN,
+BSD-3) on **synthetic data** — QR detection is an easy single-class task where
+synthetic data works well and gives pixel-perfect labels for free.
 
 Open [`training/qr_detector_colab.ipynb`](training/qr_detector_colab.ipynb) in Google
 Colab (GPU runtime) and **Run all**, or run the scripts locally
@@ -113,9 +103,9 @@ Then copy `qr-detector.onnx` into `models/` and run `npm test`.
 
 Notes:
 - The generator injects **hard negatives** (checkerboards, binary-noise squares,
-  barcode stripes, portrait rectangles, text, CCCD-like document cards) so the model
-  learns QR *finder patterns* instead of "dense square = QR" — this is what kills
-  false positives on faces/text/emblems.
+  barcode stripes, portrait rectangles, text, document cards) so the model learns QR
+  *finder patterns* instead of "dense square = QR" — this is what kills false
+  positives on faces/text/logos.
 - Training reports **`fp/img`** (false positives per image), not just recall — recall
   alone is misleading (a model that fires everywhere scores perfect recall).
 - `export_onnx.py` binds an **onnxruntime-safe postprocess**: stock torchvision exports
@@ -150,19 +140,12 @@ tsx scripts/test.ts path/to/folder             # batch -> table + summary
 QR_FIXTURES=/path/to/images tsx scripts/test.ts
 ```
 
-No sample cards are shipped — real ID photos are personal data. Bring your own.
+No sample images are shipped — point the test at your own photos.
 
 ## License
 
-**MIT** — see [LICENSE](LICENSE).
-
-The bundled detector (`models/qr-detector.onnx`) is trained from scratch on synthetic
-data with torchvision (BSD-3), so the model and the entire `training/` stack are
-permissive too. No AGPL anywhere — safe to use in a commercial/SaaS product.
-
-> Earlier revisions bundled an AGPL model ([qrdet](https://github.com/Eric-Canas/qrdet),
-> Ultralytics YOLOv8). It was removed; train your own model with the permissive
-> pipeline in [`training/`](training/) instead.
+**MIT** — see [LICENSE](LICENSE). The bundled model and the `training/` stack are
+permissively licensed too (torchvision, BSD-3).
 
 ## Acknowledgements
 

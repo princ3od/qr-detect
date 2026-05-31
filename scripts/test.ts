@@ -5,8 +5,7 @@
  *   tsx scripts/test.ts <directory>      # every image in the dir -> table + summary
  *   tsx scripts/test.ts                  # uses $QR_FIXTURES or ./fixtures
  *
- * No sample images ship with the repo (real ID cards are personal data). Point
- * it at your own folder of photos.
+ * No sample images ship with the repo. Point it at your own folder of photos.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
@@ -79,7 +78,7 @@ if (images.length === 0) {
     `No images found at "${target}".\n` +
       `Usage: tsx scripts/test.ts <image|directory>\n` +
       `   or: QR_FIXTURES=/path/to/images tsx scripts/test.ts\n` +
-      `(No sample cards ship with the repo — they're personal data.)`
+      `(No sample images ship with the repo.)`
   );
   process.exit(1);
 }

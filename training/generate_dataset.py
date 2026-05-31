@@ -9,11 +9,12 @@ trains the model to *reject* look-alikes by injecting unlabeled distractors:
 
   * hard negatives: checkerboards, binary-noise squares, barcode stripes, photo
     blobs (square high-frequency texture that is NOT a QR -> no finder pattern),
-  * text clutter and CCCD-like "document cards" (header + fields + portrait rect
-    + a QR in a corner) so the model sees QRs surrounded by text, like real IDs.
+  * text clutter and "document cards" (header + fields + portrait rect + a QR in
+    a corner) so the model sees QRs surrounded by text, like real documents/IDs.
 
 Without these, a detector trained only on QR-on-plain-bg learns "square texture =
-QR" and fires on emblems, portraits and text blocks. Payloads mimic CCCD density.
+QR" and fires on logos, portraits and text blocks. Payloads vary in length so the
+QR version/density varies (long byte-mode strings -> dense, small-module QRs).
 
 Output:
     <out>/images/<split>/{i:06d}.jpg
@@ -212,7 +213,7 @@ def add_hard_negatives(img: Image.Image, w: int, h: int, n: int):
 
 def draw_document_card(bg: Image.Image, w: int, h: int):
     """Light card with header + field lines + portrait rect; returns the corner
-    rect (x1,y1,x2,y2) where a QR should be placed, mimicking a CCCD."""
+    rect (x1,y1,x2,y2) where a QR should be placed, mimicking an ID/document."""
     cw = random.randint(int(w * 0.55), int(w * 0.95))
     ch = random.randint(int(cw * 0.55), int(cw * 0.72))
     ch = min(ch, int(h * 0.95))

@@ -1,7 +1,7 @@
 {
   "name": "@homstera/qr-detect",
   "version": "0.1.0",
-  "description": "Detector-first QR localization + decoding for hard cases (small/blurry/low-contrast QR on Vietnamese CCCD ID cards).",
+  "description": "Detector-first QR localization + decoding for hard cases (small, blurry, or low-contrast QR codes in photos).",
   "type": "module",
   "license": "MIT",
   "publishConfig": {
