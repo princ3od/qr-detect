@@ -4,6 +4,9 @@
   "description": "Detector-first QR localization + decoding for hard cases (small/blurry/low-contrast QR on Vietnamese CCCD ID cards).",
   "type": "module",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=18"
   },
