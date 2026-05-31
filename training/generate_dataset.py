@@ -301,7 +301,9 @@ def _place_qr(bg, w, h, target_rect=None):
         ox = min(max(0, tx1), w - qr.width)
         oy = min(max(0, ty1), h - qr.height)
     else:
-        frac = random.uniform(0.04, 0.38)
+        # mostly small QRs (the hard case); occasionally a frame-filling closeup
+        frac = (random.uniform(0.55, 0.95) if random.random() < 0.1
+                else random.uniform(0.04, 0.38))
         target = max(16, int(min(w, h) * frac))
         scale = target / max(qr.size)
         qr = qr.resize((max(8, int(qr.width * scale)), max(8, int(qr.height * scale))),

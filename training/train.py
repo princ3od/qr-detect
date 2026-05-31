@@ -24,7 +24,12 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from dataset import QrDataset, collate_fn
 
 
-def build_model(num_classes: int = 2):
+# background + "QR". Kept as a module constant so the ONNX export can use it as
+# a Python literal (required for an onnxruntime-safe reshape; see export_onnx.py).
+NUM_CLASSES = 2
+
+
+def build_model(num_classes: int = NUM_CLASSES):
     # COCO-pretrained backbone+RPN gives a big head start; we only swap the
     # box predictor for our (background + QR) = 2 classes.
     model = fasterrcnn_mobilenet_v3_large_fpn(

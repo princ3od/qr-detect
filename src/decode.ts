@@ -17,8 +17,12 @@ const READ_OPTS: ReaderOptions = {
 const BBOX_PADDING = 0.15; // expand the detected box by 15% on each side
 // zxing's binarizer is resolution-sensitive: a dense CCCD QR often decodes at
 // one upscale but not a neighbouring one. Sweep a few short-side targets and
-// stop at the first hit. Ordered by observed win-rate on real cards.
-const UPSCALE_TARGETS = [900, 800, 1100, 1600, 2400];
+// stop at the first hit. Ordered by observed win-rate across both the tight
+// qrdet boxes and the looser FasterRCNN boxes on real cards.
+const UPSCALE_TARGETS = [1200, 1000, 1100, 900, 800, 1600, 2000, 2400, 3000];
+// When detection fails entirely we decode the whole image; small frame-filling
+// QRs (e.g. an already-cropped photo) often need upscaling too.
+const FULL_UPSCALE_TARGETS = [1500, 2000, 1000];
 
 let zxingPrepared = false;
 
@@ -109,7 +113,21 @@ export async function decodeCrop(
   return null;
 }
 
-/** Fallback: decode the whole (auto-oriented) image once. */
+/** Fallback: decode the whole (auto-oriented) image, native first then a few upscales. */
 export async function decodeFull(image: Buffer): Promise<string | null> {
-  return decodePipe(sharp(image));
+  const native = await decodePipe(sharp(image));
+  if (native) return native;
+  const meta = await sharp(image).metadata();
+  const w = meta.width ?? 0;
+  const h = meta.height ?? 0;
+  const shortSide = Math.min(w, h);
+  if (!shortSide) return null;
+  for (const target of FULL_UPSCALE_TARGETS) {
+    const factor = target / shortSide;
+    if (factor <= 1) continue; // only upscale
+    const pipe = sharp(image).resize({ width: Math.round(w * factor), kernel: "cubic" });
+    const text = await decodePipe(pipe);
+    if (text) return text;
+  }
+  return null;
 }
