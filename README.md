@@ -130,10 +130,10 @@ not batched); outputs `boxes [N,4]` xyxy, `scores [N]`, `labels [N]` — NMS bak
 ```
 src/
   index.ts      detectAndDecodeQr + types
-  detector.ts   QrDetector interface, FasterRcnnQrDetector, Yolov8QrDetector, createDefaultDetector
+  detector.ts   QrDetector interface, FasterRcnnQrDetector, createDefaultDetector
   decode.ts     crop+upscale+zxing decode, full-image fallback
 scripts/test.ts CLI / smoke test
-models/         bundled ONNX model(s)
+models/         bundled ONNX model
 training/       synthetic data generator, training, ONNX export, Colab notebook
 ```
 
