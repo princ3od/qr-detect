@@ -1,5 +1,5 @@
 {
-  "name": "@homstera/qr-detect",
+  "name": "@princ3od/qr-detect",
   "version": "0.1.0",
   "description": "Detector-first QR localization + decoding for hard cases (small, blurry, or low-contrast QR codes in photos).",
   "type": "module",

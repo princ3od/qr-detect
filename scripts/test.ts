@@ -1,5 +1,5 @@
 /**
- * CLI / smoke test for @homstera/qr-detect.
+ * CLI / smoke test for @princ3od/qr-detect.
  *
  *   tsx scripts/test.ts <image>          # one image -> { text, bbox, confidence, source, ms }
  *   tsx scripts/test.ts <directory>      # every image in the dir -> table + summary

@@ -1,4 +1,4 @@
-# @homstera/qr-detect
+# @princ3od/qr-detect
 
 Detector-first QR localization + decoding for **hard cases** — small, blurry, or
 low-contrast QR codes in photos, where decoding the whole image fails.
@@ -13,7 +13,7 @@ big photo. This package instead:
 Runs on CPU via `onnxruntime-node`. Self-contained and offline after install.
 
 ```ts
-import { detectAndDecodeQr } from "@homstera/qr-detect";
+import { detectAndDecodeQr } from "@princ3od/qr-detect";
 import { readFileSync } from "node:fs";
 
 const result = await detectAndDecodeQr(readFileSync("photo.jpg"));
@@ -23,7 +23,7 @@ const result = await detectAndDecodeQr(readFileSync("photo.jpg"));
 ## Install
 
 ```bash
-npm install @homstera/qr-detect
+npm install @princ3od/qr-detect
 ```
 
 Dependencies: `onnxruntime-node`, `sharp`, `zxing-wasm`. Requires **Node 18+**.
